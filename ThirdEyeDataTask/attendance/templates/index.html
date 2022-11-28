@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+{%load static%}
+{% load tz %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Index</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.css" />
+	<link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid-theme.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css" integrity="sha512-ELV+xyi8IhEApPS/pSj66+Jiw+sOT1Mqkzlh8ExXihe4zfqbWkxPRi8wptXIO9g73FSlhmquFlUOuMSoXz5IRw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+   <script src="https://code.jquery.com/jquery-3.6.0.min.js" ></script>
+	 <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js" ></script>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.3/jsgrid.min.js"></script>
+  <style type="text/css">
+    form#add_userform div{
+      display: flex;
+      width: 50%;
+      margin: 5px 0px;
+    }
+  </style>
+</head>
+<body>
+    <div class="container" style="margin-top:40px">
+      <h1 style="text-align:center;text-decoration:underline dotted;">Attendance System</h1>
+      <div class="row">
+        <div class="col-sm-4">{{form.errors}}
+            <div class="card">
+              <img src="{{user.userprofile.profile_photo.url}}" class="card-img-top" alt="...">
+              <div class="card-body">
+                <h5 class="card-title">{{user.get_full_name}}({{user.username}})</h5>
+                <h6 class="card-title">{{user.userprofile.contact_no}}</h6>
+                <p class="card-text">{{user.userprofile.description}}</p>
+                <p class="card-text">Last Check in at: {{last_attendance.in_time}}</p>
+
+                  {%if last_attendance.in_time.date == today%} 
+                <p class="card-text">Total Work Time: {%if last_attendance.out_time%}{{last_attendance.in_time|timesince:last_attendance.out_time}}{%else%}{{last_attendance.in_time|timesince}}{%endif%}</p>
+                  {%endif%}
+
+                  {%if last_attendance.in_time.date != today%} 
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#checkinModal">
+                  Check In
+                </button>
+                  {%elif not last_attendance.out_time%}
+                <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#checkoutModal">
+                  Check Out
+                </button>
+                  {%endif%}
+              </div>
+            </div>
+            <form id="logout-form" method="post" action="{%url 'logout'%}?next={%url 'login'%}">
+                {%csrf_token%}
+              <button type="submit" class="btn btn-danger btn-lg col-10 m-3">Log out</button>
+            </form>
+        </div>
+        <div class="col-sm-8">
+          <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="my_attendance-tab" data-bs-toggle="tab" data-bs-target="#my_attendance" type="button" role="tab" aria-controls="my_attendance" aria-selected="false">My Attendance</button>
+            </li>
+            {%if user.is_superuser%}
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="all_attendance-tab" data-bs-toggle="tab" data-bs-target="#all_attendance" type="button" role="tab" aria-controls="all_attendance" aria-selected="false">All Attendance</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="add_user-tab" data-bs-toggle="tab" data-bs-target="#add_user" type="button" role="tab" aria-controls="add_user" aria-selected="false">Add User</button>
+            </li>
+            {%endif%}
+          </ul>
+          <div class="tab-content" id="myTabContent">
+            <div class="tab-pane fade show active" id="my_attendance" role="tabpanel" aria-labelledby="my_attendance-tab">
+              <div id="my_attendanceTable"></div>
+            </div>
+            <div class="tab-pane fade" id="all_attendance" role="tabpanel" aria-labelledby="all_attendance-tab">
+              <div id="all_attendanceTable"></div>
+            </div>
+            {%if user.is_superuser%}
+            <div class="tab-pane fade" id="add_user" role="tabpanel" aria-labelledby="add_user-tab">
+              <h5>Add User</h5>
+              <form action="" method="post" class="row" id="add_userform" enctype="multipart/form-data">
+                {%csrf_token%}
+                <div>
+                  <label>Username</label>
+                  <input type="text" name="username" required>
+                </div>
+                <div>
+                  <label>First Name</label>
+                  <input type="text" name="first_name" required>
+                </div>
+                <div>
+                  <label>Last Name</label>
+                  <input type="text" name="last_name" required>
+                </div>
+                <div>
+                  <label>Email</label>
+                  <input type="email" name="email" required>
+                </div>
+                <div>
+                  <label>Password</label>
+                  <input type="text" name="password" required>
+                </div>
+                {{form.as_div}}
+                <div>
+                  <input type="submit" name="" class="btn btn-primary sm-2" value="Add User">
+                </div>
+                
+              </form>
+            </div>
+            {%endif%}
+          </div>
+        </div>
+      </div>
+    </div>
+    {%if last_attendance.in_time.date != today%}
+    <div class="modal fade" id="checkinModal" tabindex="-1" aria-labelledby="checkinModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="checkinModalLabel">Check IN</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+              <form action="{%url 'check_in'%}" method="post">
+                  {%csrf_token%}
+                  <input type="submit" name="submit" class="btn btn-secondary" value="Confirm check-in">
+              </form>
+          </div>
+          <div class="modal-footer">
+            <!-- <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button> -->
+            <!-- <button type="button" class="btn btn-primary">Save changes</button> -->
+          </div>
+        </div>
+      </div>
+    </div>
+    {%elif not last_attendance.out_time%}
+    <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="checkoutModalLabel">Check Out</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+              <form action="{%url 'check_out' pk=last_attendance.id%}" method="post">
+                  {%csrf_token%}
+                  <input type="submit" name="submit" class="btn btn-secondary" value="Confirm check-out">
+              </form>
+          </div>
+          <div class="modal-footer">
+            <!-- <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button> -->
+            <!-- <button type="button" class="btn btn-primary">Save changes</button> -->
+          </div>
+        </div>
+      </div>
+    </div>
+    {%endif%}
+</body>
+<script type="text/javascript">
+  $(function() {
+
+    function format(date) {
+      date = new Date(date);
+
+      var day = ('0' + date.getDate()).slice(-2);
+      var month = ('0' + (date.getMonth() + 1)).slice(-2);
+      var year = date.getFullYear();
+
+      return year + '-' + month + '-' + day;
+    }
+ 
+    var MyDateField = function(config) {
+        jsGrid.Field.call(this, config);
+    };
+ 
+    MyDateField.prototype = new jsGrid.Field({
+      sorter: function(date1, date2) {
+          return new Date(date1) - new Date(date2);
+      },
+
+      itemTemplate: function(value) {
+          return value ? new Date(value).toLocaleString() : '';
+      },
+
+      insertTemplate: function(value) {
+          return this._insertPicker = $("<input>").datepicker({ defaultDate: new Date() });
+      },
+
+      filterTemplate: function(value) {
+          return this._filterPicker = $("<input>").datepicker({ defaultDate: new Date() });
+      },
+
+      filterValue: function() {
+          return this._filterPicker.datepicker("getDate")? format(this._filterPicker.datepicker("getDate")).toLocaleString() : '';
+      },
+
+      editTemplate: function(value) {
+          return this._editPicker = $("<input>").datepicker().datepicker("setDate", new Date(value));
+      },
+
+      insertValue: function() {
+          return this._insertPicker.datepicker("getDate").toLocaleString();
+      },
+
+      editValue: function() {
+          return this._editPicker.datepicker("getDate").toLocaleString();
+      }
+    });
+
+    jsGrid.fields.myDateField = MyDateField;
+
+    fields = [
+            { name: "user", type: "text", title: "Name"},
+            { name: "in_time", type: "myDateField", title: "In Time"},
+            { name: "out_time", type: "myDateField", title: "Out Time"},
+            { name: "hr", type: "text", title: "HR Difference"},
+            // { name: "Work HR", type: "text", title: "Work HR", itemTemplate: function(value, item){
+            //   out_time = item.out_time ? new Date(item.out_time) : new Date();
+            //   console.log(out_time);
+            //   return out_time.getHours() - new Date(item.in_time).getHours() ;
+            // }},
+            { name: "control", type: "control", editButton:false, deleteButton:false },
+        ];
+
+    function grid(selector, url, fields) {
+      $(`#${selector}`).jsGrid({
+        height: "500px",
+        width: "100%",
+
+        filtering: true,
+        editing: false,
+        sorting: true,
+        paging: true,
+        autoload: true,
+
+        pageSize: 25,
+        pageButtonCount: 5,
+
+        deleteConfirm: "Do you really want to delete the client?",
+
+        data:[
+        ],
+
+        controller: {
+          loadData: function(filter) {
+                data = filter;
+                var d = $.Deferred();
+                return $.ajax({
+                    type: "GET",
+                    url: url,
+                    dataType: 'json',
+                    data: data
+                }).done(function(response) {
+                    d.resolve(response.value);
+                });
+                return d.promise();
+            },
+          },
+
+        fields: fields,
+      });
+    }
+
+    grid(selector="my_attendanceTable", url="{%url 'my_attendance-api'%}", fields=fields);
+
+    {%if user.is_superuser%}
+    grid(selector="all_attendanceTable", url="{%url 'all_attendance-api'%}", fields=fields);
+    {%endif%}
+
+  });
+
+    
+</script>
+
+</html>
